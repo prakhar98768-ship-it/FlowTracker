@@ -11,7 +11,10 @@ import {
   Beaker,
   Atom,
   Leaf,
+  Table,
 } from "lucide-react";
+
+import { ThemeToggle } from "./ThemeToggle";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -19,6 +22,7 @@ const navItems = [
   { href: "/subjects/physics", label: "Physics", icon: Atom },
   { href: "/subjects/chemistry", label: "Chemistry", icon: Beaker },
   { href: "/planner", label: "Planner", icon: CalendarDays },
+  { href: "/timetable", label: "Time Table", icon: Table },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
@@ -59,8 +63,9 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-border/50">
+      <div className="p-4 border-t border-border/50 flex items-center justify-between">
         <p className="text-xs text-muted-foreground">NEET 2026 Prep</p>
+        <ThemeToggle />
       </div>
     </aside>
   );

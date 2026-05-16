@@ -139,13 +139,15 @@
 
 /* Glassmorphism */
 .glass {
-  background: oklch(1 0 0 / 6%);
+  background: oklch(1 0 0 / 70%);
   backdrop-filter: blur(16px);
-  border: 1px solid oklch(1 0 0 / 10%);
+  border: 1px solid oklch(0 0 0 / 8%);
+  box-shadow: 0 4px 6px -1px oklch(0 0 0 / 3%), 0 2px 4px -2px oklch(0 0 0 / 3%);
 }
 .dark .glass {
   background: oklch(1 0 0 / 4%);
   border: 1px solid oklch(1 0 0 / 8%);
+  box-shadow: none;
 }
 
 /* Custom Scrollbar */

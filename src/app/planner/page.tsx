@@ -55,8 +55,21 @@ export default function PlannerPage() {
   }
 
   async function toggleTask(id: string, completed: boolean) {
+    const task = tasks.find(t => t.id === id);
+    if (!task || !user) return;
+
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, is_completed: completed } : t)));
     await supabase.from("planner_tasks").update({ is_completed: completed }).eq("id", id);
+
+    const status = completed ? "completed" : "in_progress";
+    const progress = completed ? 100 : 0;
+    
+    await supabase
+      .from("chapter_progress")
+      .update({ progress, status, last_studied: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .eq("subject", task.subject)
+      .eq("chapter_name", task.chapter_name);
   }
 
   async function deleteTask(id: string) {

@@ -8,12 +8,14 @@ import {
   BookOpen,
   CalendarDays,
   BarChart3,
+  Table,
 } from "lucide-react";
 
 const tabs = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/subjects/biology", label: "Subjects", icon: BookOpen },
   { href: "/planner", label: "Planner", icon: CalendarDays },
+  { href: "/timetable", label: "Time Table", icon: Table },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
