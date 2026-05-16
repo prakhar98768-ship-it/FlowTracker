@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   BookOpen,
-  CalendarDays,
   BarChart3,
   Beaker,
   Atom,
@@ -21,7 +20,6 @@ const navItems = [
   { href: "/subjects/biology", label: "Biology", icon: Leaf },
   { href: "/subjects/physics", label: "Physics", icon: Atom },
   { href: "/subjects/chemistry", label: "Chemistry", icon: Beaker },
-  { href: "/planner", label: "Planner", icon: CalendarDays },
   { href: "/timetable", label: "Time Table", icon: Table },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];

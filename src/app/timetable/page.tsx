@@ -5,27 +5,47 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useUser } from "@/lib/hooks/useUser";
-import { format, addDays, isSameDay } from "date-fns";
-import type { PlannerTask } from "@/lib/types";
+import { format, addDays } from "date-fns";
+import type { PlannerTask, ChapterProgress } from "@/lib/types";
 import { TimeTable } from "@/components/timetable/TimeTable";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Edit2, Check } from "lucide-react";
+import { DragEndEvent } from "@dnd-kit/core";
+
+export type TimetableTask = PlannerTask & { progress: number };
 
 export default function TimeTablePage() {
   const { user, supabase } = useUser();
-  const [tasks, setTasks] = useState<PlannerTask[]>([]);
+  const [tasks, setTasks] = useState<TimetableTask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [daysToShow, setDaysToShow] = useState(7); // Show next 7 days by default
+  const [daysToShow, setDaysToShow] = useState(7);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const fetchTasks = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
+    
+    // Fetch planner tasks
+    const { data: plannerData } = await supabase
       .from("planner_tasks")
       .select("*")
       .eq("user_id", user.id)
       .order("date", { ascending: true });
-    
-    if (data) setTasks(data as PlannerTask[]);
+      
+    // Fetch chapter progress to get the completion percentage
+    const { data: progressData } = await supabase
+      .from("chapter_progress")
+      .select("subject, chapter_name, progress")
+      .eq("user_id", user.id);
+      
+    if (plannerData) {
+      const combined = plannerData.map((task) => {
+        const prog = progressData?.find(
+          (p) => p.subject === task.subject && p.chapter_name === task.chapter_name
+        );
+        return { ...task, progress: prog?.progress || 0 };
+      });
+      setTasks(combined as TimetableTask[]);
+    }
     setLoading(false);
   }, [user, supabase]);
 
@@ -33,45 +53,23 @@ export default function TimeTablePage() {
     fetchTasks();
   }, [fetchTasks]);
 
-  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel("timetable_tasks_rt")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "planner_tasks" },
-        () => fetchTasks()
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "planner_tasks" }, () => fetchTasks())
       .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [supabase, fetchTasks]);
 
-  // Generate dates array starting from today
-  const dates = Array.from({ length: daysToShow }).map((_, i) =>
-    addDays(new Date(), i)
-  );
+  const dates = Array.from({ length: daysToShow }).map((_, i) => addDays(new Date(), i));
 
   async function handleTaskComplete(task: PlannerTask, completed: boolean) {
     if (!user) return;
-    
-    // 1. Update planner_tasks
-    setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, is_completed: completed } : t))
-    );
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, is_completed: completed, progress: completed ? 100 : 0 } : t)));
     await supabase.from("planner_tasks").update({ is_completed: completed }).eq("id", task.id);
-
-    // 2. Also update chapter_progress globally
     const status = completed ? "completed" : "in_progress";
-    const progress = completed ? 100 : 0; // fallback if un-completing
-    
-    await supabase
-      .from("chapter_progress")
-      .update({ progress, status, last_studied: new Date().toISOString() })
-      .eq("user_id", user.id)
-      .eq("subject", task.subject)
-      .eq("chapter_name", task.chapter_name);
+    await supabase.from("chapter_progress").update({ progress: completed ? 100 : 0, status, last_studied: new Date().toISOString() })
+      .eq("user_id", user.id).eq("subject", task.subject).eq("chapter_name", task.chapter_name);
   }
 
   async function handleAddTask(date: Date, subject: string, chapterName: string) {
@@ -91,28 +89,54 @@ export default function TimeTablePage() {
     await supabase.from("planner_tasks").delete().eq("id", taskId);
   }
 
-  if (loading) {
-    return (
-      <AppShell>
-        <LoadingSpinner />
-      </AppShell>
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || !user) return;
+
+    const taskId = active.id as string;
+    const overId = over.id as string; // Format: "YYYY-MM-DD_subject"
+
+    // If dropped on the same container it started in, do nothing
+    if (active.data.current?.sortable?.containerId === overId) return;
+
+    const [newDateStr, newSubject] = overId.split("_");
+    
+    // Optimistic update
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === taskId) {
+          return { ...t, date: newDateStr, subject: newSubject as any };
+        }
+        return t;
+      })
     );
+
+    await supabase.from("planner_tasks").update({ date: newDateStr, subject: newSubject }).eq("id", taskId);
   }
+
+  if (loading) return <AppShell><LoadingSpinner /></AppShell>;
 
   return (
     <AppShell>
       <div className="max-w-6xl mx-auto space-y-6">
         <PageHeader
           title="Time Table"
-          description="Your scheduled chapters by date and subject"
+          description="Drag and drop your study sessions"
           actions={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDaysToShow((prev) => prev + 7)}
-            >
-              <Plus className="w-4 h-4 mr-2" /> Load More Days
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={isEditMode ? "default" : "secondary"}
+                size="sm"
+                onClick={() => setIsEditMode(!isEditMode)}
+                className={isEditMode ? "bg-primary" : ""}
+              >
+                {isEditMode ? <Check className="w-4 h-4 mr-2" /> : <Edit2 className="w-4 h-4 mr-2" />}
+                {isEditMode ? "Done Editing" : "Edit Mode"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setDaysToShow((prev) => prev + 7)}>
+                <Plus className="w-4 h-4 mr-2" /> Load More Days
+              </Button>
+            </div>
           }
         />
 
@@ -123,6 +147,8 @@ export default function TimeTablePage() {
             onToggleComplete={handleTaskComplete}
             onAddTask={handleAddTask}
             onDeleteTask={handleDeleteTask}
+            isEditMode={isEditMode}
+            onDragEnd={handleDragEnd}
           />
         </div>
       </div>

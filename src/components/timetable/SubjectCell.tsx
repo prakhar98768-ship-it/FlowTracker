@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { format } from "date-fns";
 import { SubjectId, SUBJECT_CONFIG } from "@/lib/constants";
 import { SYLLABUS } from "@/lib/syllabus";
-import type { PlannerTask } from "@/lib/types";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -13,61 +11,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Plus } from "lucide-react";
+import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import type { TimetableTask } from "@/app/timetable/page";
+import { DraggableTaskCard } from "./DraggableTaskCard";
 
 interface Props {
   date: Date;
   subject: SubjectId;
-  tasks: PlannerTask[];
-  onToggleComplete: (task: PlannerTask, completed: boolean) => void;
+  tasks: TimetableTask[];
+  onToggleComplete: (task: TimetableTask, completed: boolean) => void;
   onAddTask: (date: Date, subject: SubjectId, chapterName: string) => void;
   onDeleteTask: (taskId: string) => void;
+  isEditMode: boolean;
 }
 
-export function SubjectCell({ date, subject, tasks, onToggleComplete, onAddTask, onDeleteTask }: Props) {
+export function SubjectCell({ date, subject, tasks, onToggleComplete, onAddTask, onDeleteTask, isEditMode }: Props) {
   const [isAdding, setIsAdding] = useState(false);
-  const color = SUBJECT_CONFIG[subject].color;
-  
+  const dateStr = format(date, "yyyy-MM-dd");
+  const containerId = `${dateStr}_${subject}`;
+
+  const { setNodeRef, isOver } = useDroppable({
+    id: containerId,
+  });
+
   const chapters = SYLLABUS.find((s) => s.subject === subject);
   const allChapters = chapters ? [...chapters.class11, ...chapters.class12] : [];
 
   return (
-    <div className="flex flex-col gap-2 h-full">
-      <AnimatePresence>
+    <div
+      ref={setNodeRef}
+      className={`flex flex-col gap-2 h-full min-h-[100px] p-1 rounded-lg transition-colors ${
+        isOver && isEditMode ? "bg-primary/10 ring-1 ring-primary/30" : ""
+      }`}
+    >
+      <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         {tasks.map((task) => (
-          <motion.div
+          <DraggableTaskCard
             key={task.id}
-            initial={{ opacity: 0, y: -5 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`flex items-start gap-2 p-2 rounded-md text-sm transition-colors group ${
-              task.is_completed ? "bg-muted/30" : "bg-card border border-border/50 shadow-sm"
-            }`}
-          >
-            <Checkbox
-              className="mt-0.5"
-              checked={task.is_completed}
-              onCheckedChange={(checked) => onToggleComplete(task, checked === true)}
-              style={task.is_completed ? { backgroundColor: color, borderColor: color } : {}}
-            />
-            <span
-              className={`flex-1 leading-snug ${
-                task.is_completed ? "line-through text-muted-foreground" : "text-foreground"
-              }`}
-            >
-              {task.chapter_name}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5 shrink-0"
-              onClick={() => onDeleteTask(task.id)}
-            >
-              <Trash2 className="w-3 h-3 text-destructive" />
-            </Button>
-          </motion.div>
+            task={task}
+            onToggleComplete={onToggleComplete}
+            onDeleteTask={onDeleteTask}
+            isEditMode={isEditMode}
+          />
         ))}
-      </AnimatePresence>
+      </SortableContext>
 
       {/* Add Button / Select */}
       <div className="mt-auto pt-2">

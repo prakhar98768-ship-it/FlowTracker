@@ -15,16 +15,16 @@ export function TodaysTasks({ tasks }: Props) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold">Today&apos;s Tasks</h2>
         <Link
-          href="/planner"
+          href="/timetable"
           className="text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          View Planner →
+          View Time Table →
         </Link>
       </div>
       {tasks.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center">
           No tasks scheduled for today.{" "}
-          <Link href="/planner" className="text-primary hover:underline">
+          <Link href="/timetable" className="text-primary hover:underline">
             Add some
           </Link>
         </p>
