@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { format, isToday } from "date-fns";
 import { SubjectId, SUBJECT_CONFIG, SUBJECTS } from "@/lib/constants";
 import { SubjectCell } from "./SubjectCell";
-import { DndContext, DragEndEvent, pointerWithin } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, DragStartEvent, pointerWithin, DragOverlay, defaultDropAnimationSideEffects } from "@dnd-kit/core";
 import type { TimetableTask } from "@/app/timetable/page";
+import { DraggableTaskCard } from "./DraggableTaskCard";
 
 interface Props {
   dates: Date[];
@@ -16,9 +18,36 @@ interface Props {
   onDragEnd: (event: DragEndEvent) => void;
 }
 
+const dropAnimation = {
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: {
+        opacity: "0.4",
+      },
+    },
+  }),
+};
+
 export function TimeTable({ dates, tasks, onToggleComplete, onAddTask, onDeleteTask, isEditMode, onDragEnd }: Props) {
+  const [activeTask, setActiveTask] = useState<TimetableTask | null>(null);
+
+  function handleDragStart(event: DragStartEvent) {
+    const { active } = event;
+    const task = tasks.find((t) => t.id === active.id);
+    if (task) setActiveTask(task);
+  }
+
+  function handleDragEndLocal(event: DragEndEvent) {
+    setActiveTask(null);
+    onDragEnd(event);
+  }
+
   return (
-    <DndContext onDragEnd={onDragEnd} collisionDetection={pointerWithin}>
+    <DndContext 
+      onDragStart={handleDragStart} 
+      onDragEnd={handleDragEndLocal} 
+      collisionDetection={pointerWithin}
+    >
       <div className="w-full overflow-x-auto">
         <div className="min-w-[800px]">
           {/* Header */}
@@ -81,6 +110,20 @@ export function TimeTable({ dates, tasks, onToggleComplete, onAddTask, onDeleteT
           </div>
         </div>
       </div>
+      
+      <DragOverlay dropAnimation={dropAnimation}>
+        {activeTask ? (
+          <div style={{ transform: "rotate(3deg) scale(1.05)", cursor: "grabbing" }}>
+            <DraggableTaskCard
+              task={activeTask}
+              onToggleComplete={onToggleComplete}
+              onDeleteTask={onDeleteTask}
+              isEditMode={isEditMode}
+              isOverlay
+            />
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }
