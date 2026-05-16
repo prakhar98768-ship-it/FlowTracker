@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, BookOpen, CheckCircle2, Clock } from "lucide-react";
 import { STATUS_LABELS, ChapterStatus } from "@/lib/constants";
 
@@ -96,9 +97,22 @@ export function ChapterCard({
             <div className="px-4 pb-4 space-y-4 border-t border-border/30 pt-3">
               {/* Progress Slider */}
               <div className="space-y-2">
-                <label className="text-xs text-muted-foreground">
-                  Progress: {chapter.progress}%
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-muted-foreground">
+                    Progress: {chapter.progress}%
+                  </label>
+                  <Button
+                    variant={chapter.progress === 100 ? "secondary" : "default"}
+                    size="sm"
+                    className="h-7 text-xs px-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdate(chapter.id, { progress: chapter.progress === 100 ? 0 : 100 });
+                    }}
+                  >
+                    {chapter.progress === 100 ? "Completed ✓" : "Mark Complete"}
+                  </Button>
+                </div>
                 <Slider
                   value={[chapter.progress]}
                   max={100}
