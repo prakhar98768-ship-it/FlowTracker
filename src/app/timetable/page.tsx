@@ -83,7 +83,12 @@ export default function TimeTablePage() {
       chapter_name: chapterName,
       is_completed: false,
     });
-    fetchTasks(); // Optional: Realtime channel might catch it, but this is immediate
+    fetchTasks();
+  }
+
+  async function handleDeleteTask(taskId: string) {
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    await supabase.from("planner_tasks").delete().eq("id", taskId);
   }
 
   if (loading) {
@@ -117,6 +122,7 @@ export default function TimeTablePage() {
             tasks={tasks}
             onToggleComplete={handleTaskComplete}
             onAddTask={handleAddTask}
+            onDeleteTask={handleDeleteTask}
           />
         </div>
       </div>

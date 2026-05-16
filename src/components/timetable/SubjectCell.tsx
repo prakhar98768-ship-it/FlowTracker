@@ -5,6 +5,7 @@ import { SubjectId, SUBJECT_CONFIG } from "@/lib/constants";
 import { SYLLABUS } from "@/lib/syllabus";
 import type { PlannerTask } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -12,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Props {
@@ -21,9 +22,10 @@ interface Props {
   tasks: PlannerTask[];
   onToggleComplete: (task: PlannerTask, completed: boolean) => void;
   onAddTask: (date: Date, subject: SubjectId, chapterName: string) => void;
+  onDeleteTask: (taskId: string) => void;
 }
 
-export function SubjectCell({ date, subject, tasks, onToggleComplete, onAddTask }: Props) {
+export function SubjectCell({ date, subject, tasks, onToggleComplete, onAddTask, onDeleteTask }: Props) {
   const [isAdding, setIsAdding] = useState(false);
   const color = SUBJECT_CONFIG[subject].color;
   
@@ -38,7 +40,7 @@ export function SubjectCell({ date, subject, tasks, onToggleComplete, onAddTask 
             key={task.id}
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`flex items-start gap-2 p-2 rounded-md text-sm transition-colors ${
+            className={`flex items-start gap-2 p-2 rounded-md text-sm transition-colors group ${
               task.is_completed ? "bg-muted/30" : "bg-card border border-border/50 shadow-sm"
             }`}
           >
@@ -55,6 +57,14 @@ export function SubjectCell({ date, subject, tasks, onToggleComplete, onAddTask 
             >
               {task.chapter_name}
             </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5 shrink-0"
+              onClick={() => onDeleteTask(task.id)}
+            >
+              <Trash2 className="w-3 h-3 text-destructive" />
+            </Button>
           </motion.div>
         ))}
       </AnimatePresence>

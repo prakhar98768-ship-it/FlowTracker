@@ -10,9 +10,10 @@ interface Props {
   tasks: PlannerTask[];
   onToggleComplete: (task: PlannerTask, completed: boolean) => void;
   onAddTask: (date: Date, subject: SubjectId, chapterName: string) => void;
+  onDeleteTask: (taskId: string) => void;
 }
 
-export function TimeTable({ dates, tasks, onToggleComplete, onAddTask }: Props) {
+export function TimeTable({ dates, tasks, onToggleComplete, onAddTask, onDeleteTask }: Props) {
   return (
     <div className="w-full overflow-x-auto">
       <div className="min-w-[800px]">
@@ -65,6 +66,7 @@ export function TimeTable({ dates, tasks, onToggleComplete, onAddTask }: Props) 
                       tasks={dayTasks.filter((t) => t.subject === subject)}
                       onToggleComplete={onToggleComplete}
                       onAddTask={onAddTask}
+                      onDeleteTask={onDeleteTask}
                     />
                   </div>
                 ))}
