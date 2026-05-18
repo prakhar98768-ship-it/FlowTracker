@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useUser } from "@/lib/hooks/useUser";
-import { format, addDays } from "date-fns";
+import { format, addDays, subDays, parseISO, eachDayOfInterval, isToday } from "date-fns";
 import type { PlannerTask, ChapterProgress } from "@/lib/types";
 import { TimeTable } from "@/components/timetable/TimeTable";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit2, Check } from "lucide-react";
+import { Plus, Edit2, Check, ChevronUp, ChevronDown } from "lucide-react";
 import { DragEndEvent } from "@dnd-kit/core";
 
 export type TimetableTask = PlannerTask & { progress: number };
@@ -18,13 +18,15 @@ export default function TimeTablePage() {
   const { user, supabase } = useUser();
   const [tasks, setTasks] = useState<TimetableTask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [daysToShow, setDaysToShow] = useState(7);
+  const [pastDaysExtra, setPastDaysExtra] = useState(0);
+  const [futureDaysExtra, setFutureDaysExtra] = useState(0);
   const [isEditMode, setIsEditMode] = useState(false);
+  const todayRowRef = useRef<HTMLDivElement>(null);
 
   const fetchTasks = useCallback(async () => {
     if (!user) return;
     
-    // Fetch planner tasks
+    // Fetch ALL planner tasks — no date filtering, preserving full history
     const { data: plannerData } = await supabase
       .from("planner_tasks")
       .select("*")
@@ -38,10 +40,12 @@ export default function TimeTablePage() {
       .eq("user_id", user.id);
       
     if (plannerData) {
+      // Map tasks with progress — NO date reassignment, NO carry-forward
       const combined = plannerData.map((task) => {
         const prog = progressData?.find(
           (p) => p.subject === task.subject && p.chapter_name === task.chapter_name
         );
+        // Preserve the original date exactly as stored in the database
         return { ...task, progress: prog?.progress || 0 };
       });
       setTasks(combined as TimetableTask[]);
@@ -61,7 +65,35 @@ export default function TimeTablePage() {
     return () => { supabase.removeChannel(channel); };
   }, [supabase, fetchTasks]);
 
-  const dates = Array.from({ length: daysToShow }).map((_, i) => addDays(new Date(), i));
+  // Build date range: from earliest task date (or 7 days ago) through 7 days in the future
+  // Each date is independent — tasks stay on their originally scheduled date
+  const dates = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Find the earliest task date so we always show historical rows
+    let earliestDate = subDays(today, 7);
+    if (tasks.length > 0) {
+      const taskDates = tasks.map((t) => parseISO(t.date));
+      const minTaskDate = new Date(Math.min(...taskDates.map((d) => d.getTime())));
+      if (minTaskDate < earliestDate) {
+        earliestDate = minTaskDate;
+      }
+    }
+
+    // Extend range based on user-requested extra days
+    const rangeStart = subDays(earliestDate, pastDaysExtra);
+    const rangeEnd = addDays(today, 7 + futureDaysExtra);
+
+    return eachDayOfInterval({ start: rangeStart, end: rangeEnd });
+  }, [tasks, pastDaysExtra, futureDaysExtra]);
+
+  // Scroll to today's row on first load
+  useEffect(() => {
+    if (!loading && todayRowRef.current) {
+      todayRowRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [loading]);
 
   async function handleTaskComplete(task: PlannerTask, completed: boolean) {
     if (!user) return;
@@ -74,6 +106,7 @@ export default function TimeTablePage() {
 
   async function handleAddTask(date: Date, subject: string, chapterName: string) {
     if (!user) return;
+    // Task is permanently assigned to this specific date
     await supabase.from("planner_tasks").insert({
       user_id: user.id,
       date: format(date, "yyyy-MM-dd"),
@@ -101,7 +134,7 @@ export default function TimeTablePage() {
 
     const [newDateStr, newSubject] = overId.split("_");
     
-    // Optimistic update
+    // Manual drag = manual date reassignment (user-initiated only)
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
@@ -121,7 +154,7 @@ export default function TimeTablePage() {
       <div className="max-w-6xl mx-auto space-y-6">
         <PageHeader
           title="Time Table"
-          description="Drag and drop your study sessions"
+          description="Your study schedule — tasks stay on their scheduled date"
           actions={
             <div className="flex items-center gap-2">
               <Button
@@ -133,12 +166,21 @@ export default function TimeTablePage() {
                 {isEditMode ? <Check className="w-4 h-4 mr-2" /> : <Edit2 className="w-4 h-4 mr-2" />}
                 {isEditMode ? "Done Editing" : "Edit Mode"}
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setDaysToShow((prev) => prev + 7)}>
-                <Plus className="w-4 h-4 mr-2" /> Load More Days
-              </Button>
             </div>
           }
         />
+
+        {/* Load Previous Days */}
+        <div className="flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setPastDaysExtra((prev) => prev + 7)}
+          >
+            <ChevronUp className="w-4 h-4 mr-1" /> Load Earlier Days
+          </Button>
+        </div>
 
         <div className="glass rounded-xl overflow-hidden border border-border/50">
           <TimeTable
@@ -149,7 +191,20 @@ export default function TimeTablePage() {
             onDeleteTask={handleDeleteTask}
             isEditMode={isEditMode}
             onDragEnd={handleDragEnd}
+            todayRowRef={todayRowRef}
           />
+        </div>
+
+        {/* Load Future Days */}
+        <div className="flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setFutureDaysExtra((prev) => prev + 7)}
+          >
+            <ChevronDown className="w-4 h-4 mr-1" /> Load More Future Days
+          </Button>
         </div>
       </div>
     </AppShell>

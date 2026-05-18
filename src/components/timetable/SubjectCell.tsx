@@ -25,9 +25,10 @@ interface Props {
   onAddTask: (date: Date, subject: SubjectId, chapterName: string) => void;
   onDeleteTask: (taskId: string) => void;
   isEditMode: boolean;
+  isPastDate?: boolean;
 }
 
-export function SubjectCell({ date, subject, tasks, onToggleComplete, onAddTask, onDeleteTask, isEditMode }: Props) {
+export function SubjectCell({ date, subject, tasks, onToggleComplete, onAddTask, onDeleteTask, isEditMode, isPastDate }: Props) {
   const [isAdding, setIsAdding] = useState(false);
   const dateStr = format(date, "yyyy-MM-dd");
   const containerId = `${dateStr}_${subject}`;
@@ -54,6 +55,7 @@ export function SubjectCell({ date, subject, tasks, onToggleComplete, onAddTask,
             onToggleComplete={onToggleComplete}
             onDeleteTask={onDeleteTask}
             isEditMode={isEditMode}
+            isOverdue={isPastDate && !task.is_completed}
           />
         ))}
       </SortableContext>

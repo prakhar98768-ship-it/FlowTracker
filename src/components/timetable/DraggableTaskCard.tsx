@@ -4,7 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Trash2, GripVertical, CheckCircle2 } from "lucide-react";
+import { Trash2, GripVertical, CheckCircle2, AlertCircle } from "lucide-react";
 import type { TimetableTask } from "@/app/timetable/page";
 import { SUBJECT_CONFIG } from "@/lib/constants";
 
@@ -13,10 +13,10 @@ interface Props {
   onToggleComplete: (task: TimetableTask, completed: boolean) => void;
   onDeleteTask: (taskId: string) => void;
   isEditMode: boolean;
-  isOverlay?: boolean;
+  isOverdue?: boolean;
 }
 
-export function DraggableTaskCard({ task, onToggleComplete, onDeleteTask, isEditMode, isOverlay }: Props) {
+export function DraggableTaskCard({ task, onToggleComplete, onDeleteTask, isEditMode, isOverdue }: Props) {
   const {
     attributes,
     listeners,
@@ -24,44 +24,35 @@ export function DraggableTaskCard({ task, onToggleComplete, onDeleteTask, isEdit
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id, disabled: !isEditMode || isOverlay });
+  } = useSortable({ id: task.id, disabled: !isEditMode });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging && !isOverlay ? 0.3 : 1,
+    opacity: isDragging ? 0.5 : 1,
   };
 
   const color = SUBJECT_CONFIG[task.subject].color;
   const isCompleted = task.is_completed;
 
-  // If this is the original card being dragged, we just render a placeholder outline
-  if (isDragging && !isOverlay) {
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className="h-full w-full min-h-[60px] border-2 border-dashed border-primary/30 rounded-lg bg-primary/5"
-      />
-    );
-  }
-
   return (
     <div
-      ref={isOverlay ? undefined : setNodeRef}
-      style={isOverlay ? undefined : style}
+      ref={setNodeRef}
+      style={style}
       className={`relative group flex flex-col gap-2 p-2.5 rounded-lg text-sm transition-colors border shadow-sm ${
         isCompleted
           ? "bg-muted/40 border-transparent opacity-80"
+          : isOverdue
+          ? "bg-card border-amber-500/30"
           : "bg-card border-border/50"
-      } ${isOverlay ? "shadow-xl border-primary/50" : ""}`}
+      }`}
     >
       <div className="flex items-start gap-2">
         {/* Drag Handle */}
         {isEditMode && (
           <div
-            {...(isOverlay ? {} : attributes)}
-            {...(isOverlay ? {} : listeners)}
+            {...attributes}
+            {...listeners}
             className="mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-foreground shrink-0"
           >
             <GripVertical className="w-4 h-4" />
@@ -88,6 +79,14 @@ export function DraggableTaskCard({ task, onToggleComplete, onDeleteTask, isEdit
             {task.chapter_name}
           </span>
           
+          {/* Overdue tag on individual card */}
+          {isOverdue && (
+            <span className="inline-flex items-center gap-1 text-[8px] font-semibold text-amber-500 mt-1 w-fit">
+              <AlertCircle className="w-2.5 h-2.5" />
+              Overdue
+            </span>
+          )}
+
           {/* Progress Indicator */}
           <div className="flex items-center gap-2 mt-1.5">
             <div className="flex-1 bg-muted/50 rounded-full h-1 overflow-hidden">
